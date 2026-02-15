@@ -1,17 +1,16 @@
-# Sensitive data from audit - NEVER commit these
-laptop-snapshot/
-files/
+# Sensitive data from audit — NEVER commit these
+snapshot/
 
-# Ansible artifacts
-*.retry
-.ansible/
+# Populated role files (contain user configs, themes, etc.)
+roles/*/files/*
+!roles/*/files/.gitkeep
 
 # Populated variables (review before committing)
 group_vars/all.yml
 
-# Generated documentation (if recreated from templates)
-MANUAL_STEPS.md
-POST_INSTALL.md
+# Ansible artifacts
+*.retry
+.ansible/
 
 # Editor/IDE
 .vscode/

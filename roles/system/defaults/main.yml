@@ -1,0 +1,22 @@
+---
+custom_sysctl_files: []
+custom_udev_rules: []
+custom_modprobe_files: []
+custom_fstab_entries: []
+custom_hosts_entries: []
+firewall_services: []
+firewall_ports: []
+enabled_services: []
+disabled_services: []
+user_enabled_services: []
+user_enabled_timers: []
+grub_cmdline_extra: ""
+networkmanager_profiles: []
+restore_cups_printers: false
+restore_crontab: false
+custom_logind_confs: []
+restore_logind_conf: false
+custom_resolved_confs: []
+restore_resolved_conf: false
+custom_journald_confs: []
+custom_sudoers_files: []

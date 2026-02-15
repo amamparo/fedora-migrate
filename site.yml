@@ -1,0 +1,42 @@
+---
+# Fedora Migration Playbook
+# Applies captured system state to a fresh Fedora install.
+#
+# Usage:
+#   ansible-playbook site.yml                    # full run
+#   ansible-playbook site.yml --check --diff     # dry run
+#   ansible-playbook site.yml --tags repos       # single role
+#   ansible-playbook site.yml --tags packages,shell
+
+- name: Fedora laptop migration
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  pre_tasks:
+    - name: Verify running on Fedora
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Fedora"
+        fail_msg: "This playbook is designed for Fedora only."
+
+    - name: Verify not running as root
+      ansible.builtin.assert:
+        that:
+          - ansible_user_id != "root"
+        fail_msg: "Run this playbook as your normal user, not root. Use --ask-become-pass for privilege escalation."
+
+    - name: Display target info
+      ansible.builtin.debug:
+        msg: "Migrating to {{ ansible_hostname }} (Fedora {{ ansible_distribution_version }}, {{ ansible_architecture }})"
+
+  roles:
+    - { role: repos, tags: ['repos'] }
+    - { role: packages, tags: ['packages'] }
+    - { role: shell, tags: ['shell'] }
+    - { role: desktop, tags: ['desktop'] }
+    - { role: system, tags: ['system'] }
+    - { role: devtools, tags: ['devtools'] }
+    - { role: audio, tags: ['audio'] }
+    - { role: thirdparty, tags: ['thirdparty'] }
+    - { role: hardware, tags: ['hardware'] }

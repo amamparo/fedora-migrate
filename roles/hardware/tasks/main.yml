@@ -1,0 +1,116 @@
+---
+# Role: hardware — Microcode, power management, AMD→Intel adjustments
+
+# -- CPU microcode -----------------------------------------------------------
+
+- name: Install Intel microcode
+  ansible.builtin.dnf:
+    name:
+      - microcode_ctl
+      - intel-gpu-firmware
+    state: present
+  become: true
+  when: install_intel_microcode | bool
+
+- name: Install AMD microcode
+  ansible.builtin.dnf:
+    name:
+      - microcode_ctl
+      - amd-gpu-firmware
+    state: present
+  become: true
+  when: install_amd_microcode | bool
+
+# -- Linux firmware (general) -----------------------------------------------
+
+- name: Ensure linux-firmware is installed
+  ansible.builtin.dnf:
+    name: linux-firmware
+    state: present
+  become: true
+
+# -- TLP (power management) -------------------------------------------------
+
+- name: Install TLP
+  ansible.builtin.dnf:
+    name:
+      - tlp
+      - tlp-rdw
+    state: present
+  become: true
+  when: tlp_enabled | bool
+
+- name: Copy TLP configuration
+  ansible.builtin.copy:
+    src: tlp.conf
+    dest: /etc/tlp.conf
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  when:
+    - tlp_enabled | bool
+    - lookup('file', role_path + '/files/tlp.conf', errors='ignore') | length > 0
+  notify: restart tlp
+
+- name: Copy TLP drop-in configs
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: /etc/tlp.d/
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  loop: "{{ lookup('fileglob', role_path + '/files/tlp.d/*', wantlist=True) }}"
+  loop_control:
+    label: "{{ item | basename }}"
+  when: tlp_enabled | bool
+  notify: restart tlp
+
+- name: Enable TLP service
+  ansible.builtin.systemd:
+    name: tlp
+    enabled: true
+    state: started
+  become: true
+  when: tlp_enabled | bool
+
+- name: Disable power-profiles-daemon when TLP is used
+  ansible.builtin.systemd:
+    name: power-profiles-daemon
+    enabled: false
+    state: stopped
+  become: true
+  when: tlp_enabled | bool
+  failed_when: false
+
+# -- power-profiles-daemon (alternative to TLP) -----------------------------
+
+- name: Ensure power-profiles-daemon is enabled
+  ansible.builtin.systemd:
+    name: power-profiles-daemon
+    enabled: true
+    state: started
+  become: true
+  when:
+    - power_profiles_daemon | bool
+    - not (tlp_enabled | bool)
+  failed_when: false
+
+# -- Thermald (Intel-specific) ----------------------------------------------
+
+- name: Install thermald for Intel CPUs
+  ansible.builtin.dnf:
+    name: thermald
+    state: present
+  become: true
+  when: install_intel_microcode | bool
+
+- name: Enable thermald
+  ansible.builtin.systemd:
+    name: thermald
+    enabled: true
+    state: started
+  become: true
+  when: install_intel_microcode | bool
+  failed_when: false

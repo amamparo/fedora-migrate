@@ -1,0 +1,5 @@
+---
+install_intel_microcode: false
+install_amd_microcode: false
+tlp_enabled: false
+power_profiles_daemon: true

@@ -1,0 +1,364 @@
+---
+# Role: system — sysctl, udev, fstab, firewall, services, GRUB, network
+
+# -- sysctl ------------------------------------------------------------------
+
+- name: Copy sysctl configuration files
+  ansible.builtin.copy:
+    src: "sysctl.d/{{ item }}"
+    dest: "/etc/sysctl.d/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  loop: "{{ custom_sysctl_files }}"
+  when: custom_sysctl_files | length > 0
+  notify: reload sysctl
+
+# -- udev rules --------------------------------------------------------------
+
+- name: Copy udev rules
+  ansible.builtin.copy:
+    src: "udev/{{ item }}"
+    dest: "/etc/udev/rules.d/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  loop: "{{ custom_udev_rules }}"
+  when: custom_udev_rules | length > 0
+  notify: reload udev
+
+# -- modprobe ----------------------------------------------------------------
+
+- name: Copy modprobe configuration
+  ansible.builtin.copy:
+    src: "modprobe.d/{{ item }}"
+    dest: "/etc/modprobe.d/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  loop: "{{ custom_modprobe_files }}"
+  when: custom_modprobe_files | length > 0
+
+# -- /etc/fstab additions ---------------------------------------------------
+
+- name: Add custom fstab entries
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    line: "{{ item.line }}"
+    state: present
+  become: true
+  loop: "{{ custom_fstab_entries }}"
+  when: custom_fstab_entries | length > 0
+
+# -- /etc/hosts additions ---------------------------------------------------
+
+- name: Add custom hosts entries
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    line: "{{ item }}"
+    state: present
+  become: true
+  loop: "{{ custom_hosts_entries }}"
+  when: custom_hosts_entries | length > 0
+
+# -- DNF configuration -------------------------------------------------------
+
+- name: Copy DNF configuration
+  ansible.builtin.copy:
+    src: dnf.conf
+    dest: /etc/dnf/dnf.conf
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  when: lookup('file', role_path + '/files/dnf.conf', errors='ignore') | length > 0
+
+# -- Firewall ----------------------------------------------------------------
+
+- name: Ensure firewalld is running
+  ansible.builtin.systemd:
+    name: firewalld
+    state: started
+    enabled: true
+  become: true
+  when: firewall_services | length > 0 or firewall_ports | length > 0
+
+- name: Allow firewall services
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  become: true
+  loop: "{{ firewall_services }}"
+  when: firewall_services | length > 0
+
+- name: Allow firewall ports
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  become: true
+  loop: "{{ firewall_ports }}"
+  when: firewall_ports | length > 0
+
+# -- Systemd services (system level) ----------------------------------------
+
+- name: Enable system services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+  become: true
+  loop: "{{ enabled_services }}"
+  when: enabled_services | length > 0
+  failed_when: false
+
+- name: Disable system services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: false
+  become: true
+  loop: "{{ disabled_services }}"
+  when: disabled_services | length > 0
+  failed_when: false
+
+# -- Systemd services (user level) ------------------------------------------
+
+- name: Copy custom systemd user units
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ target_home }}/.config/systemd/user/"
+    owner: "{{ target_user }}"
+    mode: "0644"
+  loop: "{{ lookup('fileglob', role_path + '/files/systemd-user-units/*', wantlist=True) }}"
+  loop_control:
+    label: "{{ item | basename }}"
+  notify: reload user systemd
+
+- name: Enable user services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    scope: user
+  loop: "{{ user_enabled_services }}"
+  when: user_enabled_services | length > 0
+  failed_when: false
+
+- name: Enable user timers
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    scope: user
+  loop: "{{ user_enabled_timers }}"
+  when: user_enabled_timers | length > 0
+  failed_when: false
+
+# -- GRUB --------------------------------------------------------------------
+
+- name: Set GRUB command line options
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX_DEFAULT='
+    line: 'GRUB_CMDLINE_LINUX_DEFAULT="{{ grub_cmdline_extra }}"'
+  become: true
+  when: grub_cmdline_extra | length > 0
+  notify: regenerate grub
+
+# -- NetworkManager ----------------------------------------------------------
+
+- name: Ensure NetworkManager connections directory exists
+  ansible.builtin.file:
+    path: /etc/NetworkManager/system-connections
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+  when: networkmanager_profiles | length > 0
+
+- name: Copy NetworkManager connection profiles
+  ansible.builtin.copy:
+    src: "networkmanager/{{ item }}"
+    dest: "/etc/NetworkManager/system-connections/{{ item }}"
+    owner: root
+    group: root
+    mode: "0600"
+  become: true
+  loop: "{{ networkmanager_profiles }}"
+  when: networkmanager_profiles | length > 0
+  notify: reload networkmanager
+
+# -- CUPS printers -----------------------------------------------------------
+
+- name: Ensure CUPS is installed
+  ansible.builtin.dnf:
+    name: cups
+    state: present
+  become: true
+  when: restore_cups_printers | bool
+
+- name: Copy CUPS printers.conf
+  ansible.builtin.copy:
+    src: cups/printers.conf
+    dest: /etc/cups/printers.conf
+    owner: root
+    group: lp
+    mode: "0600"
+  become: true
+  when:
+    - restore_cups_printers | bool
+    - lookup('file', role_path + '/files/cups/printers.conf', errors='ignore') | length > 0
+  notify: restart cups
+
+- name: Copy CUPS PPD files
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: /etc/cups/ppd/
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  loop: "{{ lookup('fileglob', role_path + '/files/cups/*.ppd', wantlist=True) }}"
+  loop_control:
+    label: "{{ item | basename }}"
+  when: restore_cups_printers | bool
+  notify: restart cups
+
+# -- Crontab -----------------------------------------------------------------
+
+- name: Restore user crontab
+  ansible.builtin.command:
+    cmd: crontab {{ role_path }}/files/crontab.txt
+  when:
+    - restore_crontab | bool
+    - lookup('file', role_path + '/files/crontab.txt', errors='ignore') | length > 0
+  become: false
+  changed_when: true
+
+# -- logind.conf (lid/button behavior) --------------------------------------
+
+- name: Copy logind.conf
+  ansible.builtin.copy:
+    src: logind.conf
+    dest: /etc/systemd/logind.conf
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  when:
+    - restore_logind_conf | bool
+    - lookup('file', role_path + '/files/logind.conf', errors='ignore') | length > 0
+  notify: restart logind
+
+- name: Ensure logind.conf.d directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/logind.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+  when: custom_logind_confs | length > 0
+
+- name: Copy logind.conf.d drop-ins
+  ansible.builtin.copy:
+    src: "logind.conf.d/{{ item }}"
+    dest: "/etc/systemd/logind.conf.d/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  loop: "{{ custom_logind_confs }}"
+  when: custom_logind_confs | length > 0
+  notify: restart logind
+
+# -- resolved.conf (custom DNS) ---------------------------------------------
+
+- name: Copy resolved.conf
+  ansible.builtin.copy:
+    src: resolved.conf
+    dest: /etc/systemd/resolved.conf
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  when:
+    - restore_resolved_conf | bool
+    - lookup('file', role_path + '/files/resolved.conf', errors='ignore') | length > 0
+  notify: restart resolved
+
+- name: Ensure resolved.conf.d directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+  when: custom_resolved_confs | length > 0
+
+- name: Copy resolved.conf.d drop-ins
+  ansible.builtin.copy:
+    src: "resolved.conf.d/{{ item }}"
+    dest: "/etc/systemd/resolved.conf.d/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  loop: "{{ custom_resolved_confs }}"
+  when: custom_resolved_confs | length > 0
+  notify: restart resolved
+
+# -- journald.conf.d (custom logging) ---------------------------------------
+
+- name: Ensure journald.conf.d directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+  when: custom_journald_confs | length > 0
+
+- name: Copy journald.conf.d drop-ins
+  ansible.builtin.copy:
+    src: "journald.conf.d/{{ item }}"
+    dest: "/etc/systemd/journald.conf.d/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  loop: "{{ custom_journald_confs }}"
+  when: custom_journald_confs | length > 0
+  notify: restart journald
+
+# -- sudoers.d (custom sudo rules) ------------------------------------------
+
+- name: Copy sudoers.d files
+  ansible.builtin.copy:
+    src: "sudoers.d/{{ item }}"
+    dest: "/etc/sudoers.d/{{ item }}"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"
+  become: true
+  loop: "{{ custom_sudoers_files }}"
+  when: custom_sudoers_files | length > 0
+
+# -- Locale & timezone -------------------------------------------------------
+
+- name: Copy /etc/environment
+  ansible.builtin.copy:
+    src: environment
+    dest: /etc/environment
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  when: lookup('file', role_path + '/files/environment', errors='ignore') | length > 0

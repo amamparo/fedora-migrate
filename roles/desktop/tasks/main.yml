@@ -1,0 +1,227 @@
+---
+# Role: desktop — Full KDE Plasma state restoration
+
+# -- KDE config files --------------------------------------------------------
+
+- name: Ensure ~/.config exists
+  ansible.builtin.file:
+    path: "{{ target_home }}/.config"
+    state: directory
+    owner: "{{ target_user }}"
+    mode: "0755"
+
+- name: Copy KDE/Plasma config files
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ target_home }}/.config/"
+    owner: "{{ target_user }}"
+    mode: "0600"
+  loop: "{{ lookup('fileglob', role_path + '/files/plasma-config/*', wantlist=True) }}"
+  loop_control:
+    label: "{{ item | basename }}"
+  notify: restart plasmashell
+
+- name: Copy GTK settings for KDE
+  ansible.builtin.copy:
+    src: "plasma-config/{{ item }}/"
+    dest: "{{ target_home }}/.config/{{ item }}/"
+    owner: "{{ target_user }}"
+    mode: "0644"
+  loop:
+    - gtk-3.0
+    - gtk-4.0
+  when: lookup('file', role_path + '/files/plasma-config/' + item + '/settings.ini', errors='ignore') | length > 0
+
+- name: Copy plasma-workspace config
+  ansible.builtin.copy:
+    src: plasma-config/plasma-workspace/
+    dest: "{{ target_home }}/.config/plasma-workspace/"
+    owner: "{{ target_user }}"
+    mode: preserve
+  when: lookup('file', role_path + '/files/plasma-config/plasma-workspace/', errors='ignore') is directory
+
+# -- Wallpapers --------------------------------------------------------------
+
+- name: Ensure wallpapers directory exists
+  ansible.builtin.file:
+    path: "{{ target_home }}/.local/share/wallpapers"
+    state: directory
+    owner: "{{ target_user }}"
+    mode: "0755"
+
+- name: Copy wallpapers
+  ansible.builtin.copy:
+    src: wallpapers/
+    dest: "{{ target_home }}/.local/share/wallpapers/"
+    owner: "{{ target_user }}"
+    mode: "0644"
+  when: lookup('fileglob', role_path + '/files/wallpapers/*', wantlist=True) | length > 0
+
+# -- Color schemes -----------------------------------------------------------
+
+- name: Ensure color-schemes directory exists
+  ansible.builtin.file:
+    path: "{{ target_home }}/.local/share/color-schemes"
+    state: directory
+    owner: "{{ target_user }}"
+    mode: "0755"
+
+- name: Copy color schemes
+  ansible.builtin.copy:
+    src: color-schemes/
+    dest: "{{ target_home }}/.local/share/color-schemes/"
+    owner: "{{ target_user }}"
+    mode: "0644"
+  when: lookup('fileglob', role_path + '/files/color-schemes/*', wantlist=True) | length > 0
+
+# -- Window decorations (Aurorae) -------------------------------------------
+
+- name: Copy Aurorae window decorations
+  ansible.builtin.copy:
+    src: aurorae/
+    dest: "{{ target_home }}/.local/share/aurorae/"
+    owner: "{{ target_user }}"
+    mode: preserve
+  when: lookup('file', role_path + '/files/aurorae/', errors='ignore') is directory
+
+# -- Plasma themes -----------------------------------------------------------
+
+- name: Copy Plasma themes
+  ansible.builtin.copy:
+    src: themes/plasma/
+    dest: "{{ target_home }}/.local/share/plasma/"
+    owner: "{{ target_user }}"
+    mode: preserve
+  when: lookup('file', role_path + '/files/themes/plasma/', errors='ignore') is directory
+
+# -- Icon themes (user-installed) -------------------------------------------
+
+- name: Ensure icons directory exists
+  ansible.builtin.file:
+    path: "{{ target_home }}/.local/share/icons"
+    state: directory
+    owner: "{{ target_user }}"
+    mode: "0755"
+
+- name: Copy icon themes
+  ansible.builtin.copy:
+    src: icons/
+    dest: "{{ target_home }}/.local/share/icons/"
+    owner: "{{ target_user }}"
+    mode: preserve
+  when: lookup('fileglob', role_path + '/files/icons/*', wantlist=True) | length > 0
+  notify: rebuild icon cache
+
+# -- Fonts -------------------------------------------------------------------
+
+- name: Ensure fonts directory exists
+  ansible.builtin.file:
+    path: "{{ target_home }}/.local/share/fonts"
+    state: directory
+    owner: "{{ target_user }}"
+    mode: "0755"
+
+- name: Copy user fonts
+  ansible.builtin.copy:
+    src: fonts/
+    dest: "{{ target_home }}/.local/share/fonts/"
+    owner: "{{ target_user }}"
+    mode: "0644"
+  when: lookup('fileglob', role_path + '/files/fonts/*', wantlist=True) | length > 0
+  notify: rebuild font cache
+
+- name: Copy fontconfig
+  ansible.builtin.copy:
+    src: fonts/fonts.conf
+    dest: "{{ target_home }}/.config/fontconfig/fonts.conf"
+    owner: "{{ target_user }}"
+    mode: "0644"
+  when: lookup('file', role_path + '/files/fonts/fonts.conf', errors='ignore') | length > 0
+
+# -- Konsole profiles -------------------------------------------------------
+
+- name: Ensure Konsole directory exists
+  ansible.builtin.file:
+    path: "{{ target_home }}/.local/share/konsole"
+    state: directory
+    owner: "{{ target_user }}"
+    mode: "0755"
+
+- name: Copy Konsole profiles and color schemes
+  ansible.builtin.copy:
+    src: konsole/
+    dest: "{{ target_home }}/.local/share/konsole/"
+    owner: "{{ target_user }}"
+    mode: "0644"
+  when: lookup('fileglob', role_path + '/files/konsole/*', wantlist=True) | length > 0
+
+# -- SDDM (login screen) ---------------------------------------------------
+
+- name: Copy SDDM configuration
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: /etc/sddm.conf.d/
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  loop: "{{ lookup('fileglob', role_path + '/files/sddm/*.conf', wantlist=True) }}"
+  loop_control:
+    label: "{{ item | basename }}"
+
+# -- KWin scripts -----------------------------------------------------------
+
+- name: Copy KWin scripts and effects
+  ansible.builtin.copy:
+    src: kwin/
+    dest: "{{ target_home }}/.local/share/kwin/"
+    owner: "{{ target_user }}"
+    mode: preserve
+  when: lookup('file', role_path + '/files/kwin/', errors='ignore') is directory
+
+# -- KNewStuff (KDE Store downloads) ----------------------------------------
+
+- name: Copy KNewStuff metadata
+  ansible.builtin.copy:
+    src: knewstuff3/
+    dest: "{{ target_home }}/.local/share/knewstuff3/"
+    owner: "{{ target_user }}"
+    mode: preserve
+  when: lookup('file', role_path + '/files/knewstuff3/', errors='ignore') is directory
+
+# -- KScreen display profiles -----------------------------------------------
+
+- name: Ensure kscreen directory exists
+  ansible.builtin.file:
+    path: "{{ target_home }}/.local/share/kscreen"
+    state: directory
+    owner: "{{ target_user }}"
+    mode: "0755"
+
+- name: Copy KScreen display profiles
+  ansible.builtin.copy:
+    src: kscreen/
+    dest: "{{ target_home }}/.local/share/kscreen/"
+    owner: "{{ target_user }}"
+    mode: "0644"
+  when: lookup('fileglob', role_path + '/files/kscreen/*', wantlist=True) | length > 0
+
+# -- MIME default applications -----------------------------------------------
+
+- name: Copy mimeapps.list
+  ansible.builtin.copy:
+    src: plasma-config/mimeapps.list
+    dest: "{{ target_home }}/.config/mimeapps.list"
+    owner: "{{ target_user }}"
+    mode: "0644"
+  when: lookup('file', role_path + '/files/plasma-config/mimeapps.list', errors='ignore') | length > 0
+
+# -- XDG user directories ---------------------------------------------------
+
+- name: Copy user-dirs.dirs
+  ansible.builtin.copy:
+    src: plasma-config/user-dirs.dirs
+    dest: "{{ target_home }}/.config/user-dirs.dirs"
+    owner: "{{ target_user }}"
+    mode: "0644"
+  when: lookup('file', role_path + '/files/plasma-config/user-dirs.dirs', errors='ignore') | length > 0

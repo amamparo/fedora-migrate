@@ -1,0 +1,71 @@
+---
+# Role: audio — PipeWire config, realtime scheduling, audio plugins
+
+# -- PipeWire configuration --------------------------------------------------
+
+- name: Copy PipeWire user configuration
+  ansible.builtin.copy:
+    src: pipewire/
+    dest: "{{ target_home }}/.config/pipewire/"
+    owner: "{{ target_user }}"
+    mode: "0644"
+  when: lookup('fileglob', role_path + '/files/pipewire/*', wantlist=True) | length > 0
+
+# -- WirePlumber configuration -----------------------------------------------
+
+- name: Copy WirePlumber user configuration
+  ansible.builtin.copy:
+    src: wireplumber/
+    dest: "{{ target_home }}/.config/wireplumber/"
+    owner: "{{ target_user }}"
+    mode: "0644"
+  when: lookup('fileglob', role_path + '/files/wireplumber/*', wantlist=True) | length > 0
+
+# -- JACK config -------------------------------------------------------------
+
+- name: Copy JACK configuration
+  ansible.builtin.copy:
+    src: .jackdrc
+    dest: "{{ target_home }}/.jackdrc"
+    owner: "{{ target_user }}"
+    mode: "0644"
+  when: lookup('file', role_path + '/files/.jackdrc', errors='ignore') | length > 0
+
+# -- Realtime scheduling -----------------------------------------------------
+
+- name: Configure realtime scheduling limits
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: /etc/security/limits.d/
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  loop: "{{ lookup('fileglob', role_path + '/files/limits.d/*', wantlist=True) }}"
+  loop_control:
+    label: "{{ item | basename }}"
+  when: realtime_scheduling | bool
+
+- name: Add user to audio groups
+  ansible.builtin.user:
+    name: "{{ target_user }}"
+    groups: "{{ item }}"
+    append: true
+  become: true
+  loop: "{{ audio_groups }}"
+  when: audio_groups | length > 0
+
+# -- Audio udev rules --------------------------------------------------------
+
+- name: Copy audio udev rules
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: /etc/udev/rules.d/
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  loop: "{{ lookup('fileglob', role_path + '/files/udev-audio/*', wantlist=True) }}"
+  loop_control:
+    label: "{{ item | basename }}"
+  notify: reload audio udev

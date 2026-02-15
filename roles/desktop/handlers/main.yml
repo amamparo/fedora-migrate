@@ -1,0 +1,18 @@
+---
+- name: restart plasmashell
+  ansible.builtin.debug:
+    msg: >
+      KDE Plasma config files have been updated. You may need to log out
+      and log back in for all changes to take effect, or run:
+      kquitapp5 plasmashell && kstart5 plasmashell
+
+- name: rebuild icon cache
+  ansible.builtin.command:
+    cmd: gtk-update-icon-cache -f -t {{ target_home }}/.local/share/icons/{{ item }}
+  loop: "{{ lookup('fileglob', role_path + '/files/icons/*', wantlist=True) | map('basename') }}"
+  failed_when: false
+
+- name: rebuild font cache
+  ansible.builtin.command:
+    cmd: fc-cache -fv
+  become: false

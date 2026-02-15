@@ -1,0 +1,94 @@
+---
+# Role: packages — Install DNF packages and Flatpak apps
+
+- name: Install DNF packages
+  ansible.builtin.dnf:
+    name: "{{ dnf_packages }}"
+    state: present
+  become: true
+  when: dnf_packages | length > 0
+  register: dnf_result
+  # Don't fail the entire playbook if some packages are unavailable
+  ignore_errors: true
+
+- name: Report unavailable packages
+  ansible.builtin.debug:
+    msg: >
+      Some packages may not have installed successfully.
+      Check the output above for details.
+  when: dnf_result is failed
+
+# -- Remove default packages the user had deleted ---------------------------
+
+- name: Remove unwanted default packages
+  ansible.builtin.dnf:
+    name: "{{ dnf_packages_remove }}"
+    state: absent
+    autoremove: true
+  become: true
+  when: dnf_packages_remove | length > 0
+
+- name: Install Flatpak
+  ansible.builtin.dnf:
+    name: flatpak
+    state: present
+  become: true
+  when: flatpak_apps | length > 0 or flatpak_remotes | length > 0
+
+- name: Add Flatpak remotes
+  ansible.builtin.command:
+    cmd: >
+      flatpak remote-add --if-not-exists
+      {{ item.name }}
+      {{ item.url }}
+  loop: "{{ flatpak_remotes }}"
+  when: flatpak_remotes | length > 0
+  register: flatpak_remote_result
+  changed_when: "'already exists' not in flatpak_remote_result.stderr | default('')"
+
+- name: Install Flatpak apps
+  community.general.flatpak:
+    name: "{{ item.app_id }}"
+    remote: "{{ item.remote | default('flathub') }}"
+    state: present
+  loop: "{{ flatpak_apps }}"
+  when: flatpak_apps | length > 0
+  register: flatpak_result
+  ignore_errors: true
+
+- name: Report failed Flatpak installs
+  ansible.builtin.debug:
+    msg: "Failed to install Flatpak: {{ item.item.app_id }}"
+  loop: "{{ flatpak_result.results | default([]) }}"
+  when: item is failed
+  loop_control:
+    label: "{{ item.item.app_id | default('unknown') }}"
+
+# -- Flatpak permission overrides -------------------------------------------
+
+- name: Ensure Flatpak overrides directory exists
+  ansible.builtin.file:
+    path: "{{ target_home }}/.local/share/flatpak/overrides"
+    state: directory
+    owner: "{{ target_user }}"
+    mode: "0755"
+  when: flatpak_overrides | length > 0
+
+- name: Copy Flatpak permission overrides
+  ansible.builtin.copy:
+    src: "flatpak-overrides/{{ item }}"
+    dest: "{{ target_home }}/.local/share/flatpak/overrides/{{ item }}"
+    owner: "{{ target_user }}"
+    mode: "0644"
+  loop: "{{ flatpak_overrides }}"
+  when: flatpak_overrides | length > 0
+
+# -- Snap packages -----------------------------------------------------------
+
+- name: Report Snap packages to install manually
+  ansible.builtin.debug:
+    msg: >
+      The following Snap packages were on the source system: {{ snap_packages | join(', ') }}.
+      Install snapd and these packages manually if needed:
+      sudo dnf install snapd && sudo snap install {{ snap_packages | join(' ') }}
+  when: snap_packages | length > 0

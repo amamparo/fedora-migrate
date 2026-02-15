@@ -1,0 +1,5 @@
+---
+default_shell: /bin/zsh
+zsh_plugin_manager: ""
+omz_plugins: []
+omz_theme: ""

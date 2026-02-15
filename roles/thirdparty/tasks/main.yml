@@ -1,0 +1,40 @@
+---
+# Role: thirdparty — Install automatable third-party software, flag the rest
+
+# -- Custom .desktop files ---------------------------------------------------
+
+- name: Ensure user applications directory exists
+  ansible.builtin.file:
+    path: "{{ target_home }}/.local/share/applications"
+    state: directory
+    owner: "{{ target_user }}"
+    mode: "0755"
+
+- name: Copy custom .desktop files
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ target_home }}/.local/share/applications/"
+    owner: "{{ target_user }}"
+    mode: "0644"
+  loop: "{{ lookup('fileglob', role_path + '/files/desktop-files/*.desktop', wantlist=True) }}"
+  loop_control:
+    label: "{{ item | basename }}"
+
+# -- ~/Applications directory ------------------------------------------------
+
+- name: Ensure ~/Applications exists
+  ansible.builtin.file:
+    path: "{{ target_home }}/Applications"
+    state: directory
+    owner: "{{ target_user }}"
+    mode: "0755"
+  when: lookup('fileglob', role_path + '/files/applications/*', wantlist=True) | length > 0
+
+# -- Generate MANUAL_STEPS.md for non-automatable software -------------------
+
+- name: Generate MANUAL_STEPS.md
+  ansible.builtin.template:
+    src: manual_steps.md.j2
+    dest: "{{ playbook_dir }}/MANUAL_STEPS.md"
+    mode: "0644"
+  when: thirdparty_manual | length > 0

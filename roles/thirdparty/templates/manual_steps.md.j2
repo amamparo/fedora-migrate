@@ -1,0 +1,51 @@
+# Manual Steps
+
+The following items could not be automated by the playbook and require manual intervention.
+
+## Third-Party Software
+
+{% for item in thirdparty_manual %}
+### {{ item.name }}
+{{ item.description }}
+{% if item.source is defined and item.source %}
+- **Source:** {{ item.source }}
+{% endif %}
+
+{% endfor %}
+
+## Always Manual
+
+These items always require manual setup regardless of the source system:
+
+### SSH Keys
+Copy your SSH keys from a secure backup to `~/.ssh/` and set correct permissions:
+```bash
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/id_*
+chmod 644 ~/.ssh/id_*.pub
+```
+
+### Browser Profiles
+Sign in to your browsers to sync bookmarks, extensions, and settings:
+- Firefox: Sign in to Firefox Sync
+- Brave/Chrome: Sign in to Google account
+
+### Bluetooth Devices
+All Bluetooth devices need to be re-paired on the new machine.
+
+### Application Logins
+Re-authenticate in applications that store credentials locally:
+- Email clients
+- Chat apps (Slack, Discord, etc.)
+- Cloud storage (Dropbox, Nextcloud, etc.)
+- IDE accounts and licenses
+
+### API Tokens & Credentials
+Regenerate or re-enter API tokens, access keys, and credentials stored in:
+- `~/.config/` application configs
+- Environment variables in shell config
+- `.env` files in project directories
+
+### GNOME Keyring / KDE Wallet
+Secrets stored in the keyring/wallet are not migrated. You'll need to re-enter
+passwords for applications that use the system credential store.

@@ -1,0 +1,165 @@
+---
+# Fedora Migration Variables
+# This file is populated by populate.sh from the snapshot/ directory.
+# Review before committing — it contains user-specific package lists.
+
+# -- User info (auto-detected) -----------------------------------------------
+target_user: "{{ ansible_user_id }}"
+target_home: "{{ ansible_env.HOME }}"
+
+# -- Source machine info (from manifest) --------------------------------------
+source_hostname: ""
+source_fedora_version: ""
+
+# -- Repos --------------------------------------------------------------------
+rpmfusion_free: false
+rpmfusion_nonfree: false
+
+copr_repos: []
+#  - owner/project
+
+third_party_repo_files: []
+#  - filename.repo  (looked up in roles/repos/files/)
+
+# -- Packages -----------------------------------------------------------------
+dnf_packages: []
+#  - package-name
+
+dnf_packages_remove: []
+#  - package-name  (default Fedora packages you removed — firefox, konsole, etc.)
+
+flatpak_remotes:
+  - name: flathub
+    url: https://dl.flathub.org/repo/flathub.flatpakrepo
+
+flatpak_apps: []
+#  - app_id: org.example.App
+#    remote: flathub
+
+flatpak_overrides: []
+#  - org.example.App  (permission overrides in roles/packages/files/flatpak-overrides/)
+
+snap_packages: []
+#  - snap-name
+
+# -- Shell --------------------------------------------------------------------
+default_shell: /bin/zsh
+zsh_plugin_manager: ""  # oh-my-zsh, zinit, antigen, antidote, none
+# oh-my-zsh specific
+omz_plugins: []
+omz_theme: ""
+
+# -- Desktop ------------------------------------------------------------------
+# KDE config files are copied directly by populate.sh into roles/desktop/files/
+# These variables control optional behaviors:
+kde_cursor_theme: ""
+kde_icon_theme: ""
+
+# -- System -------------------------------------------------------------------
+custom_sysctl_files: []
+#  - 99-custom.conf
+
+custom_udev_rules: []
+#  - 99-custom.rules
+
+custom_modprobe_files: []
+#  - custom.conf
+
+custom_fstab_entries: []
+#  - line: "UUID=xxxx /mnt/data ext4 defaults 0 2"
+
+custom_hosts_entries: []
+#  - "192.168.1.100  myserver"
+
+firewall_services: []
+#  - ssh
+#  - http
+
+firewall_ports: []
+#  - 8080/tcp
+
+enabled_services: []
+#  - service-name.service
+
+disabled_services: []
+#  - service-name.service
+
+user_enabled_services: []
+#  - service-name.service
+
+user_enabled_timers: []
+#  - timer-name.timer
+
+grub_cmdline_extra: ""
+
+networkmanager_profiles: []
+#  - connection-name.nmconnection
+
+restore_cups_printers: false
+restore_crontab: false
+
+custom_logind_confs: []
+#  - 99-custom.conf
+restore_logind_conf: false
+
+custom_resolved_confs: []
+#  - 99-custom.conf
+restore_resolved_conf: false
+
+custom_journald_confs: []
+#  - 99-custom.conf
+
+custom_sudoers_files: []
+#  - 99-custom
+
+# -- Dev tools ----------------------------------------------------------------
+pip_user_packages: []
+#  - package==version
+
+pipx_packages: []
+#  - package-name
+
+npm_global_packages: []
+#  - package-name
+
+cargo_packages: []
+#  - crate-name
+
+go_packages: []
+#  - github.com/user/repo@latest
+
+rustup_toolchains: []
+#  - stable
+#  - nightly
+
+version_managers: []
+#  - pyenv
+#  - nvm
+
+code_extensions: []
+#  - publisher.extension-name
+code_oss_extensions: []
+codium_extensions: []
+
+docker_images: []
+#  - repository:tag
+podman_images: []
+#  - repository:tag
+
+# -- Audio --------------------------------------------------------------------
+realtime_scheduling: false
+audio_groups: []
+#  - audio
+#  - realtime
+
+# -- Third-party --------------------------------------------------------------
+thirdparty_manual: []
+#  - name: "App Name"
+#    description: "Install from https://example.com"
+#    source: "https://example.com/download"
+
+# -- Hardware -----------------------------------------------------------------
+install_intel_microcode: false
+install_amd_microcode: false
+tlp_enabled: false
+power_profiles_daemon: true

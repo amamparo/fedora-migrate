@@ -1,0 +1,196 @@
+---
+# Role: shell — Configure zsh, plugin manager, dotfiles, user scripts
+
+- name: Ensure zsh is installed
+  ansible.builtin.dnf:
+    name: zsh
+    state: present
+  become: true
+
+- name: Set default shell to zsh
+  ansible.builtin.user:
+    name: "{{ target_user }}"
+    shell: "{{ default_shell }}"
+  become: true
+
+# -- Zsh config files --------------------------------------------------------
+
+- name: Copy zsh config files
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ target_home }}/"
+    owner: "{{ target_user }}"
+    mode: "0644"
+  loop: "{{ lookup('fileglob', role_path + '/files/.z*', wantlist=True) }}"
+  loop_control:
+    label: "{{ item | basename }}"
+
+- name: Copy starship config
+  ansible.builtin.copy:
+    src: starship.toml
+    dest: "{{ target_home }}/.config/starship.toml"
+    owner: "{{ target_user }}"
+    mode: "0644"
+  when: lookup('file', role_path + '/files/starship.toml', errors='ignore') | length > 0
+
+# -- Plugin managers ---------------------------------------------------------
+
+- name: Install oh-my-zsh
+  ansible.builtin.shell:
+    cmd: >
+      sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+      -- --unattended --keep-zshrc
+    creates: "{{ target_home }}/.oh-my-zsh/oh-my-zsh.sh"
+  become: false
+  when: zsh_plugin_manager == 'oh-my-zsh'
+
+- name: Copy oh-my-zsh custom directory
+  ansible.builtin.copy:
+    src: omz-custom/
+    dest: "{{ target_home }}/.oh-my-zsh/custom/"
+    owner: "{{ target_user }}"
+    mode: preserve
+  when:
+    - zsh_plugin_manager == 'oh-my-zsh'
+    - lookup('file', role_path + '/files/omz-custom/', errors='ignore') is directory
+
+- name: Install zinit
+  ansible.builtin.shell:
+    cmd: >
+      bash -c "$(curl --fail --show-error --silent --location
+      https://raw.githubusercontent.com/zdharma-continuum/zinit/HEAD/scripts/install.sh)"
+    creates: "{{ target_home }}/.local/share/zinit/zinit.git/zinit.zsh"
+  become: false
+  environment:
+    NO_INPUT: "1"
+  when: zsh_plugin_manager == 'zinit'
+
+- name: Install antidote
+  ansible.builtin.shell:
+    cmd: >
+      git clone --depth=1 https://github.com/mattmc3/antidote.git
+      {{ target_home }}/.antidote
+    creates: "{{ target_home }}/.antidote"
+  become: false
+  when: zsh_plugin_manager == 'antidote'
+
+- name: Copy antidote plugin list
+  ansible.builtin.copy:
+    src: .zsh_plugins.txt
+    dest: "{{ target_home }}/.zsh_plugins.txt"
+    owner: "{{ target_user }}"
+    mode: "0644"
+  when:
+    - zsh_plugin_manager == 'antidote'
+    - lookup('file', role_path + '/files/.zsh_plugins.txt', errors='ignore') | length > 0
+
+# -- User scripts ------------------------------------------------------------
+
+- name: Ensure ~/bin exists
+  ansible.builtin.file:
+    path: "{{ target_home }}/bin"
+    state: directory
+    owner: "{{ target_user }}"
+    mode: "0755"
+  when: lookup('fileglob', role_path + '/files/user-scripts/bin/*', wantlist=True) | length > 0
+
+- name: Ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "{{ target_home }}/.local/bin"
+    state: directory
+    owner: "{{ target_user }}"
+    mode: "0755"
+  when: lookup('fileglob', role_path + '/files/user-scripts/.local-bin/*', wantlist=True) | length > 0
+
+- name: Copy user scripts to ~/bin
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ target_home }}/bin/"
+    owner: "{{ target_user }}"
+    mode: "0755"
+  loop: "{{ lookup('fileglob', role_path + '/files/user-scripts/bin/*', wantlist=True) }}"
+  loop_control:
+    label: "{{ item | basename }}"
+
+- name: Copy user scripts to ~/.local/bin
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ target_home }}/.local/bin/"
+    owner: "{{ target_user }}"
+    mode: "0755"
+  loop: "{{ lookup('fileglob', role_path + '/files/user-scripts/.local-bin/*', wantlist=True) }}"
+  loop_control:
+    label: "{{ item | basename }}"
+
+# -- Zsh custom dirs --------------------------------------------------------
+
+- name: Copy custom zsh directories
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ target_user }}"
+    mode: preserve
+  loop:
+    - { src: "dot-zsh/", dest: "{{ target_home }}/.zsh/" }
+    - { src: "dot-zfunc/", dest: "{{ target_home }}/.zfunc/" }
+    - { src: "dot-zsh.d/", dest: "{{ target_home }}/.zsh.d/" }
+  when: lookup('file', role_path + '/files/' + item.src, errors='ignore') is directory
+  loop_control:
+    label: "{{ item.dest }}"
+
+# -- SSH authorized_keys ----------------------------------------------------
+
+- name: Ensure ~/.ssh exists
+  ansible.builtin.file:
+    path: "{{ target_home }}/.ssh"
+    state: directory
+    owner: "{{ target_user }}"
+    mode: "0700"
+  when: lookup('file', role_path + '/files/ssh-authorized_keys', errors='ignore') | length > 0
+
+- name: Copy SSH authorized_keys
+  ansible.builtin.copy:
+    src: ssh-authorized_keys
+    dest: "{{ target_home }}/.ssh/authorized_keys"
+    owner: "{{ target_user }}"
+    mode: "0600"
+  when: lookup('file', role_path + '/files/ssh-authorized_keys', errors='ignore') | length > 0
+
+# -- GPG public keyring ------------------------------------------------------
+
+- name: Ensure ~/.gnupg exists
+  ansible.builtin.file:
+    path: "{{ target_home }}/.gnupg"
+    state: directory
+    owner: "{{ target_user }}"
+    mode: "0700"
+  when: lookup('file', role_path + '/files/gnupg/pubring.asc', errors='ignore') | length > 0
+
+- name: Import GPG public keys
+  ansible.builtin.command:
+    cmd: gpg --import {{ role_path }}/files/gnupg/pubring.asc
+  become: false
+  when: lookup('file', role_path + '/files/gnupg/pubring.asc', errors='ignore') | length > 0
+  register: gpg_import
+  changed_when: "'imported' in gpg_import.stderr | default('')"
+  failed_when: false
+
+- name: Import GPG owner trust
+  ansible.builtin.shell:
+    cmd: gpg --import-ownertrust < {{ role_path }}/files/gnupg/ownertrust.txt
+  become: false
+  when: lookup('file', role_path + '/files/gnupg/ownertrust.txt', errors='ignore') | length > 0
+  register: gpg_trust
+  changed_when: gpg_trust.rc == 0
+  failed_when: false
+
+- name: Copy GPG configuration
+  ansible.builtin.copy:
+    src: "gnupg/{{ item }}"
+    dest: "{{ target_home }}/.gnupg/{{ item }}"
+    owner: "{{ target_user }}"
+    mode: "0600"
+  loop:
+    - gpg.conf
+    - gpg-agent.conf
+  when: lookup('file', role_path + '/files/gnupg/' + item, errors='ignore') | length > 0

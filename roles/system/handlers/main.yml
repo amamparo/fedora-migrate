@@ -1,0 +1,51 @@
+---
+- name: reload sysctl
+  ansible.builtin.command:
+    cmd: sysctl --system
+  become: true
+
+- name: reload udev
+  ansible.builtin.command:
+    cmd: udevadm control --reload-rules
+  become: true
+
+- name: reload user systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+    scope: user
+
+- name: regenerate grub
+  ansible.builtin.command:
+    cmd: grub2-mkconfig -o /boot/grub2/grub.cfg
+  become: true
+
+- name: reload networkmanager
+  ansible.builtin.systemd:
+    name: NetworkManager
+    state: reloaded
+  become: true
+
+- name: restart cups
+  ansible.builtin.systemd:
+    name: cups
+    state: restarted
+    enabled: true
+  become: true
+
+- name: restart logind
+  ansible.builtin.systemd:
+    name: systemd-logind
+    state: restarted
+  become: true
+
+- name: restart resolved
+  ansible.builtin.systemd:
+    name: systemd-resolved
+    state: restarted
+  become: true
+
+- name: restart journald
+  ansible.builtin.systemd:
+    name: systemd-journald
+    state: restarted
+  become: true

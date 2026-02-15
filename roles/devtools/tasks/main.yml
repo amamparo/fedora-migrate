@@ -1,0 +1,208 @@
+---
+# Role: devtools — Language package managers, version managers (run as user)
+
+# -- pip user packages -------------------------------------------------------
+
+- name: Install pip user packages
+  ansible.builtin.pip:
+    name: "{{ item }}"
+    state: present
+    extra_args: --user
+  loop: "{{ pip_user_packages }}"
+  when: pip_user_packages | length > 0
+  become: false
+  failed_when: false
+
+# -- pipx packages -----------------------------------------------------------
+
+- name: Ensure pipx is installed
+  ansible.builtin.dnf:
+    name: pipx
+    state: present
+  become: true
+  when: pipx_packages | length > 0
+
+- name: Install pipx packages
+  ansible.builtin.command:
+    cmd: "pipx install {{ item }}"
+  loop: "{{ pipx_packages }}"
+  when: pipx_packages | length > 0
+  become: false
+  register: pipx_result
+  changed_when: "'installed package' in pipx_result.stdout | default('')"
+  failed_when: false
+
+# -- npm global packages -----------------------------------------------------
+
+- name: Check if npm is available
+  ansible.builtin.command:
+    cmd: which npm
+  register: npm_check
+  changed_when: false
+  failed_when: false
+
+- name: Install npm global packages
+  ansible.builtin.npm:
+    name: "{{ item }}"
+    global: true
+    state: present
+  loop: "{{ npm_global_packages }}"
+  when:
+    - npm_global_packages | length > 0
+    - npm_check.rc == 0
+  become: false
+  failed_when: false
+
+# -- Cargo packages ----------------------------------------------------------
+
+- name: Check if cargo is available
+  ansible.builtin.command:
+    cmd: which cargo
+  register: cargo_check
+  changed_when: false
+  failed_when: false
+
+- name: Install cargo packages
+  ansible.builtin.command:
+    cmd: "cargo install {{ item }}"
+  loop: "{{ cargo_packages }}"
+  when:
+    - cargo_packages | length > 0
+    - cargo_check.rc == 0
+  become: false
+  register: cargo_result
+  changed_when: "'Installed package' in cargo_result.stdout | default('')"
+  failed_when: false
+
+# -- Go packages -------------------------------------------------------------
+
+- name: Check if go is available
+  ansible.builtin.command:
+    cmd: which go
+  register: go_check
+  changed_when: false
+  failed_when: false
+
+- name: Install go packages
+  ansible.builtin.command:
+    cmd: "go install {{ item }}"
+  loop: "{{ go_packages }}"
+  when:
+    - go_packages | length > 0
+    - go_check.rc == 0
+  become: false
+  register: go_result
+  changed_when: go_result.rc == 0
+  failed_when: false
+
+# -- Rustup ------------------------------------------------------------------
+
+- name: Check if rustup is available
+  ansible.builtin.command:
+    cmd: which rustup
+  register: rustup_check
+  changed_when: false
+  failed_when: false
+
+- name: Install Rust via rustup
+  ansible.builtin.shell:
+    cmd: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
+    creates: "{{ target_home }}/.cargo/bin/rustup"
+  become: false
+  when:
+    - rustup_toolchains | length > 0
+    - rustup_check.rc != 0
+
+- name: Install rustup toolchains
+  ansible.builtin.command:
+    cmd: "{{ target_home }}/.cargo/bin/rustup toolchain install {{ item }}"
+  loop: "{{ rustup_toolchains }}"
+  when: rustup_toolchains | length > 0
+  become: false
+  register: rustup_result
+  changed_when: "'installed' in rustup_result.stdout | default('')"
+  failed_when: false
+
+# -- VS Code / Codium extensions ---------------------------------------------
+
+- name: Check if code is available
+  ansible.builtin.command:
+    cmd: which code
+  register: code_check
+  changed_when: false
+  failed_when: false
+
+- name: Install VS Code extensions
+  ansible.builtin.command:
+    cmd: "code --install-extension {{ item }}"
+  loop: "{{ code_extensions }}"
+  when:
+    - code_extensions | length > 0
+    - code_check.rc == 0
+  become: false
+  register: code_ext_result
+  changed_when: "'was successfully installed' in code_ext_result.stdout | default('')"
+  failed_when: false
+
+- name: Check if code-oss is available
+  ansible.builtin.command:
+    cmd: which code-oss
+  register: code_oss_check
+  changed_when: false
+  failed_when: false
+
+- name: Install Code OSS extensions
+  ansible.builtin.command:
+    cmd: "code-oss --install-extension {{ item }}"
+  loop: "{{ code_oss_extensions }}"
+  when:
+    - code_oss_extensions | length > 0
+    - code_oss_check.rc == 0
+  become: false
+  register: code_oss_ext_result
+  changed_when: "'was successfully installed' in code_oss_ext_result.stdout | default('')"
+  failed_when: false
+
+- name: Check if codium is available
+  ansible.builtin.command:
+    cmd: which codium
+  register: codium_check
+  changed_when: false
+  failed_when: false
+
+- name: Install Codium extensions
+  ansible.builtin.command:
+    cmd: "codium --install-extension {{ item }}"
+  loop: "{{ codium_extensions }}"
+  when:
+    - codium_extensions | length > 0
+    - codium_check.rc == 0
+  become: false
+  register: codium_ext_result
+  changed_when: "'was successfully installed' in codium_ext_result.stdout | default('')"
+  failed_when: false
+
+# -- Container images (informational) ---------------------------------------
+
+- name: Report Docker images to re-pull
+  ansible.builtin.debug:
+    msg: >
+      The following Docker images were on the source system: {{ docker_images | join(', ') }}.
+      Re-pull with: docker pull <image>
+  when: docker_images | length > 0
+
+- name: Report Podman images to re-pull
+  ansible.builtin.debug:
+    msg: >
+      The following Podman images were on the source system: {{ podman_images | join(', ') }}.
+      Re-pull with: podman pull <image>
+  when: podman_images | length > 0
+
+# -- Version managers (informational) ----------------------------------------
+
+- name: Report detected version managers
+  ansible.builtin.debug:
+    msg: >
+      The following version managers were detected on the source system: {{ version_managers | join(', ') }}.
+      These may need manual setup. Check your shell config files for initialization commands.
+  when: version_managers | length > 0

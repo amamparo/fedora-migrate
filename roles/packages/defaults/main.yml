@@ -1,0 +1,7 @@
+---
+dnf_packages: []
+dnf_packages_remove: []
+flatpak_remotes: []
+flatpak_apps: []
+flatpak_overrides: []
+snap_packages: []

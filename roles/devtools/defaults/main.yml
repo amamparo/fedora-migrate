@@ -1,0 +1,13 @@
+---
+pip_user_packages: []
+pipx_packages: []
+npm_global_packages: []
+cargo_packages: []
+go_packages: []
+rustup_toolchains: []
+version_managers: []
+code_extensions: []
+code_oss_extensions: []
+codium_extensions: []
+docker_images: []
+podman_images: []

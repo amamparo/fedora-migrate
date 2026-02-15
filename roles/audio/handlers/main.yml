@@ -1,0 +1,5 @@
+---
+- name: reload audio udev
+  ansible.builtin.command:
+    cmd: udevadm control --reload-rules
+  become: true
