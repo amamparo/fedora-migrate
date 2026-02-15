@@ -76,7 +76,7 @@ Include a `populate.sh` bridge script that reads from `./laptop-snapshot/` and f
 
 - **`README.md`** — project overview with two distinct setup sections:
   1. **Source machine requirements** — what needs to be installed/available on the source machine before running `audit.sh` (e.g., any tools the audit script depends on that might not be present by default on Fedora)
-  2. **Target machine setup** — pre-Ansible bootstrap steps assuming a completely bare fresh Fedora install. Walk through everything needed before `ansible-playbook site.yml` can run: installing Ansible itself, cloning the repo, copying the snapshot over, running `populate.sh`, etc. Assume the user is starting from a terminal on a fresh Fedora KDE live session or first boot.
+  2. **Target machine setup** — pre-Ansible bootstrap steps assuming a completely bare fresh Fedora install. Walk through everything needed before `ansible-playbook site.yml` can run: installing Ansible itself, cloning the repo, **transferring the snapshot from the source machine via `rsync` over the local network**, running `populate.sh`, etc. Assume the user is starting from a terminal on a fresh Fedora KDE live session or first boot. Both machines will be on the same LAN.
 - **`MANUAL_STEPS.md`** — things the playbook can't automate: SSH key migration, browser logins, Bluetooth re-pairing, API tokens, third-party apps that need manual install, etc.
 - **`POST_INSTALL.md`** — verification checklist to run after the playbook completes to confirm everything works
 
@@ -89,3 +89,12 @@ Include a `populate.sh` bridge script that reads from `./laptop-snapshot/` and f
 - The audit script must be completely non-destructive / read-only
 - Don't over-specify file paths in the playbook — discover them dynamically where possible
 - The AMD→Intel transition is mostly transparent on Fedora, but ensure correct microcode and firmware packages are installed
+
+### Security — this repo is intended to be public
+
+- **The `laptop-snapshot/` directory must be `.gitignored`** — it contains sensitive data (SSH config, network credentials, hostnames, email addresses, potentially API tokens in shell configs)
+- **The `files/` directory (populated by `populate.sh`) should also be `.gitignored`** — it contains copies of the user's actual configs
+- Only the playbook structure, roles, templates, and placeholder variables should be committed
+- The audit script should warn the user at completion that the snapshot contains sensitive data and should not be shared or committed
+- `group_vars/all.yml` after population will contain user-specific package lists — this is generally fine to commit but the user should review it first
+- Include a `.gitignore` in the project root that covers all of this by default
