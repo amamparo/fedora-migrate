@@ -1,0 +1,25 @@
+# Sensitive data from audit - NEVER commit these
+laptop-snapshot/
+files/
+
+# Ansible artifacts
+*.retry
+.ansible/
+
+# Populated variables (review before committing)
+group_vars/all.yml
+
+# Generated documentation (if recreated from templates)
+MANUAL_STEPS.md
+POST_INSTALL.md
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
