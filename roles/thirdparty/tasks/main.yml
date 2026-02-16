@@ -30,6 +30,37 @@
     mode: "0755"
   when: lookup('fileglob', role_path + '/files/applications/*', wantlist=True) | length > 0
 
+# -- ~/opt directory (user-installed packages like REAPER) -------------------
+
+- name: Copy ~/opt programs
+  ansible.builtin.copy:
+    src: user-opt/
+    dest: "{{ target_home }}/opt/"
+    owner: "{{ target_user }}"
+    mode: preserve
+  when: lookup('first_found', dict(files=['user-opt/'], paths=[role_path + '/files'], skip=true)) | length > 0
+
+# -- ~/.local/bin (user-installed binaries) ----------------------------------
+
+- name: Ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "{{ target_home }}/.local/bin"
+    state: directory
+    owner: "{{ target_user }}"
+    mode: "0755"
+  when: lookup('first_found', dict(files=['user-local-bin/'], paths=[role_path + '/files'], skip=true)) | length > 0
+
+- name: Copy ~/.local/bin binaries
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ target_home }}/.local/bin/"
+    owner: "{{ target_user }}"
+    mode: preserve
+  loop: "{{ lookup('fileglob', role_path + '/files/user-local-bin/*', wantlist=True) }}"
+  loop_control:
+    label: "{{ item | basename }}"
+  when: item | basename != 'listing.txt'
+
 # -- Generate MANUAL_STEPS.md for non-automatable software -------------------
 
 - name: Generate MANUAL_STEPS.md

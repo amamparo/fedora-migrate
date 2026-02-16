@@ -663,6 +663,16 @@ section "Populating third-party"
         done < "$SNAPSHOT_DIR/thirdparty/usr-local-bin/listing.txt"
     fi
 
+    # Items from ~/.local/bin
+    if [[ -f "$SNAPSHOT_DIR/thirdparty/user-local-bin/listing.txt" ]]; then
+        while IFS=$'\t' read -r name ftype; do
+            [[ -z "$name" ]] && continue
+            echo "  - name: \"$name\""
+            echo "    description: \"Found in ~/.local/bin ($ftype)\""
+            echo "    source: \"unknown — check if available as RPM, Flatpak, or direct download\""
+        done < "$SNAPSHOT_DIR/thirdparty/user-local-bin/listing.txt"
+    fi
+
     # Items from /opt
     if [[ -f "$SNAPSHOT_DIR/thirdparty/opt/details.txt" ]]; then
         while IFS=$'\t' read -r name size; do
@@ -671,6 +681,16 @@ section "Populating third-party"
             echo "    description: \"Found in /opt ($size)\""
             echo "    source: \"unknown — check vendor website\""
         done < "$SNAPSHOT_DIR/thirdparty/opt/details.txt"
+    fi
+
+    # Items from ~/opt
+    if [[ -f "$SNAPSHOT_DIR/thirdparty/user-opt/details.txt" ]]; then
+        while IFS=$'\t' read -r name size; do
+            [[ -z "$name" ]] && continue
+            echo "  - name: \"$name\""
+            echo "    description: \"Found in ~/opt ($size)\""
+            echo "    source: \"unknown — check vendor website\""
+        done < "$SNAPSHOT_DIR/thirdparty/user-opt/details.txt"
     fi
 
     # AppImages
@@ -689,6 +709,18 @@ section "Populating third-party"
 
 # Copy desktop files
 copy_to_role thirdparty desktop-files "$SNAPSHOT_DIR/thirdparty/desktop-files"
+
+# Copy user-level third-party directories (can be restored directly)
+if [[ -d "$SNAPSHOT_DIR/thirdparty/user-opt" ]]; then
+    copy_to_role thirdparty user-opt "$SNAPSHOT_DIR/thirdparty/user-opt"
+    # Remove audit metadata — only actual program dirs should be deployed
+    rm -f "$ROLES_DIR/thirdparty/files/user-opt/listing.txt" \
+          "$ROLES_DIR/thirdparty/files/user-opt/details.txt"
+fi
+if [[ -d "$SNAPSHOT_DIR/thirdparty/user-local-bin" ]]; then
+    copy_to_role thirdparty user-local-bin "$SNAPSHOT_DIR/thirdparty/user-local-bin"
+    rm -f "$ROLES_DIR/thirdparty/files/user-local-bin/listing.txt"
+fi
 success "Third-party items catalogued"
 
 # -- Hardware ----------------------------------------------------------------

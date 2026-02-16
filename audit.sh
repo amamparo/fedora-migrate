@@ -36,7 +36,7 @@ init_snapshot() {
         rm -rf "$SNAPSHOT_DIR"
     fi
 
-    mkdir -p "$SNAPSHOT_DIR"/{packages/{dnf-repos,copr-repos,flatpak-overrides},shell,desktop/{plasma-config,wallpapers,themes,icons,color-schemes,aurorae,fonts,konsole,sddm,cursors,kscreen},dotfiles/{config,local-share,gnupg},system/{sysctl.d,udev,modprobe.d,firewall,systemd/custom-units,networkmanager,cups,logind.conf.d,resolved.conf.d,journald.conf.d,sudoers.d},devtools,audio/{pipewire,wireplumber,udev-audio},thirdparty/{usr-local-bin,opt,applications,desktop-files},hardware}
+    mkdir -p "$SNAPSHOT_DIR"/{packages/{dnf-repos,copr-repos,flatpak-overrides},shell,desktop/{plasma-config,wallpapers,themes,icons,color-schemes,aurorae,fonts,konsole,sddm,cursors,kscreen},dotfiles/{config,local-share,gnupg},system/{sysctl.d,udev,modprobe.d,firewall,systemd/custom-units,networkmanager,cups,logind.conf.d,resolved.conf.d,journald.conf.d,sudoers.d},devtools,audio/{pipewire,wireplumber,udev-audio},thirdparty/{usr-local-bin,user-local-bin,opt,user-opt,applications,desktop-files},hardware}
 }
 
 # -- Manifest ----------------------------------------------------------------
@@ -920,6 +920,22 @@ capture_thirdparty() {
             success "$(count_lines "$tp_dir/usr-local-bin/listing.txt") files in /usr/local/bin"
     fi
 
+    # ~/.local/bin contents (user-installed binaries)
+    if [[ -d "$HOME/.local/bin" ]]; then
+        for f in "$HOME/.local/bin"/*; do
+            [[ -f "$f" ]] || continue
+            local fname
+            fname="$(basename "$f")"
+            local ftype
+            ftype="$(file -b "$f" 2>/dev/null | head -c 80)"
+            echo -e "$fname\t$ftype" >> "$tp_dir/user-local-bin/listing.txt"
+            # Copy actual binary — user-owned, can be restored directly
+            cp -p "$f" "$tp_dir/user-local-bin/"
+        done
+        [[ -s "$tp_dir/user-local-bin/listing.txt" ]] && \
+            success "$(count_lines "$tp_dir/user-local-bin/listing.txt") files in ~/.local/bin"
+    fi
+
     # /opt contents
     if [[ -d /opt ]]; then
         ls -1 /opt/ > "$tp_dir/opt/listing.txt" 2>/dev/null || true
@@ -932,6 +948,23 @@ capture_thirdparty() {
             size="$(du -sh "$d" 2>/dev/null | awk '{print $1}')"
             echo -e "$dname\t$size" >> "$tp_dir/opt/details.txt"
         done
+    fi
+
+    # ~/opt contents (user-installed packages like REAPER)
+    if [[ -d "$HOME/opt" ]]; then
+        ls -1 "$HOME/opt/" > "$tp_dir/user-opt/listing.txt" 2>/dev/null || true
+        for d in "$HOME/opt"/*/; do
+            [[ -d "$d" ]] || continue
+            local dname
+            dname="$(basename "$d")"
+            local size
+            size="$(du -sh "$d" 2>/dev/null | awk '{print $1}')"
+            echo -e "$dname\t$size" >> "$tp_dir/user-opt/details.txt"
+        done
+        # Copy actual contents — user-owned, can be restored directly
+        cp -r "$HOME/opt"/* "$tp_dir/user-opt/" 2>/dev/null || true
+        [[ -s "$tp_dir/user-opt/details.txt" ]] && \
+            success "$(count_lines "$tp_dir/user-opt/details.txt") items in ~/opt"
     fi
 
     # ~/Applications (AppImages, etc.)
@@ -970,7 +1003,7 @@ capture_thirdparty() {
     local id_file="$tp_dir/identification.json"
     echo '[' > "$id_file"
     local first=true
-    for f in /usr/local/bin/*; do
+    for f in /usr/local/bin/* "$HOME/.local/bin"/*; do
         [[ -f "$f" ]] || continue
         local fname
         fname="$(basename "$f")"
