@@ -633,6 +633,7 @@ section "Populating audio"
 info "Copying audio files..."
 copy_to_role audio pipewire "$SNAPSHOT_DIR/audio/pipewire"
 copy_to_role audio wireplumber "$SNAPSHOT_DIR/audio/wireplumber"
+copy_to_role audio reaper "$SNAPSHOT_DIR/audio/reaper"
 [[ -f "$SNAPSHOT_DIR/audio/.jackdrc" ]] && cp "$SNAPSHOT_DIR/audio/.jackdrc" "$ROLES_DIR/audio/files/"
 
 # Realtime limits

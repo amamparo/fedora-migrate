@@ -36,7 +36,7 @@ init_snapshot() {
         rm -rf "$SNAPSHOT_DIR"
     fi
 
-    mkdir -p "$SNAPSHOT_DIR"/{packages/{dnf-repos,copr-repos,flatpak-overrides},shell,desktop/{plasma-config,wallpapers,themes,icons,color-schemes,aurorae,fonts,konsole,sddm,cursors,kscreen},dotfiles/{config,local-share,gnupg},system/{sysctl.d,udev,modprobe.d,firewall,systemd/custom-units,networkmanager,cups,logind.conf.d,resolved.conf.d,journald.conf.d,sudoers.d},devtools,audio/{pipewire,wireplumber,udev-audio},thirdparty/{usr-local-bin,user-local-bin,opt,user-opt,applications,desktop-files},hardware}
+    mkdir -p "$SNAPSHOT_DIR"/{packages/{dnf-repos,copr-repos,flatpak-overrides},shell,desktop/{plasma-config,wallpapers,themes,icons,color-schemes,aurorae,fonts,konsole,sddm,cursors,kscreen},dotfiles/{config,local-share,gnupg},system/{sysctl.d,udev,modprobe.d,firewall,systemd/custom-units,networkmanager,cups,logind.conf.d,resolved.conf.d,journald.conf.d,sudoers.d},devtools,audio/{pipewire,wireplumber,udev-audio,reaper},thirdparty/{usr-local-bin,user-local-bin,opt,user-opt,applications,desktop-files},hardware}
 }
 
 # -- Manifest ----------------------------------------------------------------
@@ -898,6 +898,14 @@ capture_audio() {
     rpm -qa | grep -iE '(jack|pipewire|pulseaudio|alsa|ardour|audacity|carla|hydrogen|lmms|musescore|reaper|bitwig|lv2|vst|ladspa|dssi|clap)' \
         | sort > "$audio_dir/audio-packages.txt" 2>/dev/null || true
     [[ -s "$audio_dir/audio-packages.txt" ]] && info "$(count_lines "$audio_dir/audio-packages.txt") audio-related packages"
+
+    # REAPER DAW configuration
+    if [[ -d "$HOME/.config/REAPER" ]]; then
+        cp -r "$HOME/.config/REAPER/"* "$audio_dir/reaper/" 2>/dev/null || true
+        local reaper_size
+        reaper_size="$(du -sh "$HOME/.config/REAPER" 2>/dev/null | awk '{print $1}')"
+        success "REAPER config captured ($reaper_size)"
+    fi
 }
 
 # -- Third-Party / Manually Installed Software -------------------------------

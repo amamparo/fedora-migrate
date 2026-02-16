@@ -21,6 +21,16 @@
     mode: "0644"
   when: lookup('fileglob', role_path + '/files/wireplumber/*', wantlist=True) | length > 0
 
+# -- REAPER DAW configuration ------------------------------------------------
+
+- name: Copy REAPER configuration
+  ansible.builtin.copy:
+    src: reaper/
+    dest: "{{ target_home }}/.config/REAPER/"
+    owner: "{{ target_user }}"
+    mode: preserve
+  when: lookup('fileglob', role_path + '/files/reaper/*', wantlist=True) | length > 0
+
 # -- JACK config -------------------------------------------------------------
 
 - name: Copy JACK configuration
