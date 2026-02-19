@@ -151,7 +151,6 @@ section "Populating repos"
         mkdir -p "$ROLES_DIR/repos/files"
         for repo_file in "$SNAPSHOT_DIR/packages/dnf-repos"/*.repo; do
             [[ -f "$repo_file" ]] || continue
-            local fname
             fname="$(basename "$repo_file")"
             # Skip fedora base repos and COPR repos (handled above)
             [[ "$fname" == fedora*.repo ]] && continue
@@ -193,7 +192,7 @@ section "Populating packages"
     echo ""
     echo "flatpak_apps:"
     if [[ -f "$SNAPSHOT_DIR/packages/flatpak-apps.txt" ]] && [[ -s "$SNAPSHOT_DIR/packages/flatpak-apps.txt" ]]; then
-        local flatpak_count=0
+        flatpak_count=0
         while IFS=$'\t' read -r app_id origin _arch; do
             [[ -z "$app_id" || "$app_id" == "Application" ]] && continue
             echo "  - app_id: \"$app_id\""
@@ -218,7 +217,6 @@ section "Populating packages"
     echo "snap_packages:"
     if [[ -f "$SNAPSHOT_DIR/packages/snap-packages.txt" ]] && [[ -s "$SNAPSHOT_DIR/packages/snap-packages.txt" ]]; then
         while IFS= read -r line; do
-            local snap_name
             snap_name="$(echo "$line" | awk '{print $1}')"
             [[ -z "$snap_name" ]] && continue
             echo "  - \"$snap_name\""
@@ -250,18 +248,18 @@ section "Populating shell"
     echo "# -- Shell ----------------------------------------------------------------"
     echo "default_shell: /bin/$SOURCE_SHELL"
 
-    local pm="none"
+    pm="none"
     [[ -f "$SNAPSHOT_DIR/shell/plugin-manager.txt" ]] && pm="$(cat "$SNAPSHOT_DIR/shell/plugin-manager.txt" | tr -d '[:space:]')"
     echo "zsh_plugin_manager: \"$pm\""
     success "Plugin manager: $pm"
 
     # OMZ settings
     if [[ "$pm" == "oh-my-zsh" ]] && [[ -f "$SNAPSHOT_DIR/shell/omz-active.txt" ]]; then
-        local omz_theme=""
+        omz_theme=""
         omz_theme="$(grep -oP 'ZSH_THEME="\K[^"]+' "$SNAPSHOT_DIR/shell/omz-active.txt" 2>/dev/null || echo "")"
         echo "omz_theme: \"$omz_theme\""
 
-        local omz_plugins_raw=""
+        omz_plugins_raw=""
         omz_plugins_raw="$(grep -oP 'plugins=\(\K[^)]+' "$SNAPSHOT_DIR/shell/omz-active.txt" 2>/dev/null || echo "")"
         echo "omz_plugins:"
         if [[ -n "$omz_plugins_raw" ]]; then
@@ -307,13 +305,13 @@ section "Populating desktop"
 {
     echo "# -- Desktop --------------------------------------------------------------"
     # Cursor theme
-    local cursor=""
+    cursor=""
     [[ -f "$SNAPSHOT_DIR/desktop/cursors/active-cursor-theme.txt" ]] && \
         cursor="$(cat "$SNAPSHOT_DIR/desktop/cursors/active-cursor-theme.txt" | tr -d '[:space:]')"
     echo "kde_cursor_theme: \"$cursor\""
 
     # Icon theme (from kdeglobals)
-    local icon_theme=""
+    icon_theme=""
     if [[ -f "$SNAPSHOT_DIR/desktop/plasma-config/kdeglobals" ]]; then
         icon_theme="$(grep -oP 'Theme=\K.*' "$SNAPSHOT_DIR/desktop/plasma-config/kdeglobals" 2>/dev/null | head -1 || echo "")"
     fi
@@ -377,7 +375,6 @@ section "Populating system"
         while IFS= read -r line; do
             # Skip comments, empty lines, and standard mounts
             [[ -z "$line" || "$line" == \#* ]] && continue
-            local mountpoint
             mountpoint="$(echo "$line" | awk '{print $2}')"
             # Skip standard system mounts
             case "$mountpoint" in
@@ -401,7 +398,6 @@ section "Populating system"
     # Firewall — parse from captured config
     echo "firewall_services:"
     if [[ -f "$SNAPSHOT_DIR/system/firewall/firewall-list-all.txt" ]]; then
-        local services_line
         services_line="$(grep 'services:' "$SNAPSHOT_DIR/system/firewall/firewall-list-all.txt" 2>/dev/null | sed 's/.*services: //')"
         for svc in $services_line; do
             echo "  - \"$svc\""
@@ -410,7 +406,6 @@ section "Populating system"
 
     echo "firewall_ports:"
     if [[ -f "$SNAPSHOT_DIR/system/firewall/firewall-list-all.txt" ]]; then
-        local ports_line
         ports_line="$(grep 'ports:' "$SNAPSHOT_DIR/system/firewall/firewall-list-all.txt" 2>/dev/null | sed 's/.*ports: //')"
         for port in $ports_line; do
             [[ -n "$port" ]] && echo "  - \"$port\""
@@ -437,7 +432,7 @@ section "Populating system"
     fi
 
     # GRUB command line
-    local grub_cmdline=""
+    grub_cmdline=""
     if [[ -f "$SNAPSHOT_DIR/system/grub-defaults" ]]; then
         grub_cmdline="$(grep -oP 'GRUB_CMDLINE_LINUX_DEFAULT="\K[^"]+' "$SNAPSHOT_DIR/system/grub-defaults" 2>/dev/null || echo "")"
     fi
@@ -453,12 +448,12 @@ section "Populating system"
     fi
 
     # CUPS printers
-    local cups_found=false
+    cups_found=false
     [[ -f "$SNAPSHOT_DIR/system/cups/printers.conf" ]] && cups_found=true
     echo "restore_cups_printers: $cups_found"
 
     # Crontab
-    local has_crontab=false
+    has_crontab=false
     [[ -f "$SNAPSHOT_DIR/system/crontab.txt" ]] && [[ -s "$SNAPSHOT_DIR/system/crontab.txt" ]] && has_crontab=true
     echo "restore_crontab: $has_crontab"
 
@@ -470,7 +465,7 @@ section "Populating system"
             echo "  - \"$(basename "$f")\""
         done
     fi
-    local has_logind_conf=false
+    has_logind_conf=false
     [[ -f "$SNAPSHOT_DIR/system/logind.conf" ]] && has_logind_conf=true
     echo "restore_logind_conf: $has_logind_conf"
 
@@ -482,7 +477,7 @@ section "Populating system"
             echo "  - \"$(basename "$f")\""
         done
     fi
-    local has_resolved_conf=false
+    has_resolved_conf=false
     [[ -f "$SNAPSHOT_DIR/system/resolved.conf" ]] && has_resolved_conf=true
     echo "restore_resolved_conf: $has_resolved_conf"
 
@@ -556,7 +551,6 @@ section "Populating devtools"
         while IFS= read -r line; do
             [[ -z "$line" ]] && continue
             # pipx list --short outputs "package version"
-            local pkg_name
             pkg_name="$(echo "$line" | awk '{print $1}')"
             echo "  - \"$pkg_name\""
         done < "$SNAPSHOT_DIR/devtools/pipx.txt"
@@ -576,7 +570,6 @@ section "Populating devtools"
         while IFS= read -r line; do
             [[ -z "$line" ]] && continue
             # Extract toolchain name (before any " (..." suffix)
-            local tc
             tc="$(echo "$line" | sed 's/ (.*//')"
             echo "  - \"$tc\""
         done < "$SNAPSHOT_DIR/devtools/rustup-toolchains.txt"
@@ -587,7 +580,7 @@ section "Populating devtools"
 
     # VS Code / Codium extensions
     for vsc_cmd in code code-oss codium; do
-        local varname="${vsc_cmd//-/_}_extensions"
+        varname="${vsc_cmd//-/_}_extensions"
         echo "${varname}:"
         if [[ -f "$SNAPSHOT_DIR/devtools/${vsc_cmd}-extensions.txt" ]] && [[ -s "$SNAPSHOT_DIR/devtools/${vsc_cmd}-extensions.txt" ]]; then
             yaml_list_from_file "$SNAPSHOT_DIR/devtools/${vsc_cmd}-extensions.txt"
@@ -611,7 +604,7 @@ section "Populating audio"
     echo "# -- Audio ----------------------------------------------------------------"
 
     # Check for realtime scheduling config
-    local rt_scheduling=false
+    rt_scheduling=false
     if ls "$SNAPSHOT_DIR/audio/"*realtime* &>/dev/null 2>&1 || ls "$SNAPSHOT_DIR/audio/"*audio* &>/dev/null 2>&1; then
         rt_scheduling=true
     fi
@@ -620,7 +613,6 @@ section "Populating audio"
     # Audio groups
     echo "audio_groups:"
     if [[ -f "$SNAPSHOT_DIR/audio/user-groups.txt" ]]; then
-        local groups_str
         groups_str="$(cat "$SNAPSHOT_DIR/audio/user-groups.txt")"
         for g in audio realtime jackuser pipewire; do
             echo "$groups_str" | grep -qw "$g" && echo "  - \"$g\""
@@ -698,7 +690,6 @@ section "Populating third-party"
     if [[ -f "$SNAPSHOT_DIR/thirdparty/appimages.txt" ]] && [[ -s "$SNAPSHOT_DIR/thirdparty/appimages.txt" ]]; then
         while IFS= read -r appimage_path; do
             [[ -z "$appimage_path" ]] && continue
-            local ai_name
             ai_name="$(basename "$appimage_path" .AppImage)"
             echo "  - name: \"$ai_name\""
             echo "    description: \"AppImage at $appimage_path\""
@@ -732,7 +723,7 @@ section "Populating hardware"
     echo "# -- Hardware -------------------------------------------------------------"
 
     # Detect target CPU vendor (use what's on this machine, not the source)
-    local cpu_vendor="unknown"
+    cpu_vendor="unknown"
     if grep -qi "intel" /proc/cpuinfo 2>/dev/null; then
         cpu_vendor="intel"
     elif grep -qi "amd" /proc/cpuinfo 2>/dev/null; then
@@ -743,7 +734,7 @@ section "Populating hardware"
     echo "install_amd_microcode: $([ "$cpu_vendor" = "amd" ] && echo true || echo false)"
 
     # TLP
-    local tlp=false
+    tlp=false
     [[ -f "$SNAPSHOT_DIR/hardware/tlp.conf" ]] && tlp=true
     echo "tlp_enabled: $tlp"
     echo "power_profiles_daemon: $([ "$tlp" = "false" ] && echo true || echo false)"
