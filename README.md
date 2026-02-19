@@ -54,6 +54,19 @@ This creates `snapshot/` in the current directory.
 
 ### 4. Transfer the snapshot (and SSH keys) to the target machine
 
+Ensure SSH is running on the **source** machine:
+
+```bash
+sudo dnf install openssh-server
+sudo systemctl enable --now sshd
+```
+
+Get the source machine's IP:
+
+```bash
+hostname -I    # first address is typically your LAN IP
+```
+
 On the **target** machine, pull the snapshot from the source via rsync:
 
 ```bash
